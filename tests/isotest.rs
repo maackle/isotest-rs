@@ -1,5 +1,3 @@
-use isotest::*;
-
 trait Common {
     fn num(&self) -> u8;
 }
@@ -27,7 +25,7 @@ impl Common for RealStruct {
     }
 }
 
-impl Common for Ambi<TestStruct> {
+impl Common for isotest::Ambi<TestStruct> {
     fn num(&self) -> u8 {
         (self.clone()).as_iso().num()
     }
@@ -39,7 +37,7 @@ fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
 
 #[test]
 fn basic() {
-    run(|create, update| {
+    isotest::run(|create, update| {
         let x = create(TestStruct(1));
         let y = create(TestStruct(2));
         let z = create(TestStruct(3));

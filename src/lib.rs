@@ -3,7 +3,7 @@ use std::{any::Any, sync::Arc};
 #[macro_export]
 macro_rules! isotest {
     ($a:ty => $forward:expr, $b:ty => $backward:expr $(,)?) => {
-        impl Isotest for $a {
+        impl $crate::Isotest for $a {
             type Super = $b;
 
             fn forward(self) -> $b {
@@ -17,8 +17,8 @@ macro_rules! isotest {
             }
         }
 
-        impl Runners<$a> for $a {}
-        impl Runners<$a> for $b {}
+        impl $crate::Runners<$a> for $a {}
+        impl $crate::Runners<$a> for $b {}
     };
 }
 
@@ -44,7 +44,7 @@ pub trait Runners<Iso: Isotest + Clone + 'static>: std::fmt::Debug + 'static {
 
 /// The main dynamic generic type produced by isotest.
 /// You must implement your trait on `Ambi<YourTestStruct>`
-pub type Ambi<T> = Arc<dyn Runners<T>>;
+pub type Ambi<T> = std::sync::Arc<dyn Runners<T>>;
 
 fn generate1<Iso: Isotest + 'static>(x: Iso) -> Ambi<Iso> {
     Arc::new(x)
