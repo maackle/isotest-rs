@@ -1,5 +1,3 @@
-use std::{iter::Sum, sync::Arc};
-
 use isotest::*;
 
 trait Common {
@@ -7,47 +5,29 @@ trait Common {
 }
 
 #[derive(Copy, Clone, Debug, derive_more::Add, derive_more::Sum)]
-struct A(u8);
+struct TestStruct(u8);
 
 #[derive(Copy, Clone, Debug, derive_more::Add, derive_more::Sum)]
-struct B(u8, u8);
+struct RealStruct(u8, u8);
 
-impl Runners<A> for A {}
-impl Runners<A> for B {}
-// impl Runners<A> for Arc<A> {}
-// impl Runners<A> for Arc<B> {}
-
-impl Isotest for A {
-    type Super = B;
-
-    fn expand(&self) -> B {
-        B(self.0, 0)
-    }
-
-    fn condense(big: B) -> Self {
-        Self(big.0)
-    }
+isotest::isotest! {
+    TestStruct : |a| { RealStruct(a.0, 0) },
+    RealStruct : |b| { TestStruct(b.0) },
 }
 
-impl Common for A {
+impl Common for TestStruct {
     fn num(&self) -> u8 {
         self.0
     }
 }
 
-impl Common for B {
+impl Common for RealStruct {
     fn num(&self) -> u8 {
         self.0
     }
 }
 
-impl<T: Common + ?Sized> Common for Arc<T> {
-    fn num(&self) -> u8 {
-        (**self).num()
-    }
-}
-
-impl Common for Arc<dyn Runners<A>> {
+impl Common for Ambi<TestStruct> {
     fn num(&self) -> u8 {
         (self.clone()).as_iso().num()
     }
@@ -63,14 +43,14 @@ fn basic() {
     // update: (A -> A) -> (X -> X)
 
     run(|create, update| {
-        let x = create(A(1));
-        let y = create(A(2));
-        let z = create(A(3));
+        let x = create(TestStruct(1));
+        let y = create(TestStruct(2));
+        let z = create(TestStruct(3));
         assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6);
 
         let y = update(
             y,
-            Box::new(|mut y: A| {
+            Box::new(|mut y: TestStruct| {
                 y.0 = 4;
                 y
             }),

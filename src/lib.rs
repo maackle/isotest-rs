@@ -1,79 +1,75 @@
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
-pub trait Isotest: Sized + Runners<Self> {
-    type Super: Runners<Self>;
+#[macro_export]
+macro_rules! isotest {
+    ($a:ty : $forward:expr, $b:ty : $backward:expr $(,)?) => {
+        impl Isotest for $a {
+            type Super = $b;
 
-    fn expand(&self) -> Self::Super;
-    fn condense(big: Self::Super) -> Self;
+            fn forward(self) -> $b {
+                let f: Box<dyn Fn($a) -> $b> = Box::new($forward);
+                f(self)
+            }
+
+            fn backward(b: $b) -> Self {
+                let f: Box<dyn Fn($b) -> $a> = Box::new($backward);
+                f(b)
+            }
+        }
+
+        impl Runners<$a> for $a {}
+        impl Runners<$a> for $b {}
+    };
 }
 
-// fn modify1<Iso: Isotest>(r: Gen<Iso>, f: Mutation<Iso>) -> Gen<Iso> {
-//     Box::new(f(*r))
-// }
+pub trait Isotest: 'static + Clone + Runners<Self> {
+    type Super: Clone + Runners<Self>;
 
-pub trait Runners<Iso: Isotest> {
+    fn forward(self) -> Self::Super;
+    fn backward(b: Self::Super) -> Self;
+}
+
+pub trait Runners<Iso: Isotest + Clone + 'static>: std::fmt::Debug + 'static {
     fn as_iso(self: Arc<Self>) -> Iso {
-        todo!()
+        let any: &dyn Any = &self;
+
+        if let Some(iso) = any.downcast_ref::<Arc<Iso>>() {
+            (*(iso.clone())).clone()
+        } else if let Some(iso) = any.downcast_ref::<Arc<Iso::Super>>() {
+            Iso::backward((*(iso.clone())).clone())
+        } else {
+            panic!("item is not of either expected Isotest type")
+        }
     }
-
-    // // fn generate1(&self) -> Box<Iso> {
-    // //     Box::new(self.clone())
-    // // }
-
-    // fn modify1(self: Arc<Self>, f: Mutation<Iso>) -> Box<Iso> {
-    //     // Self::generate1(f(*self))
-    //     Box::new(f(self.as_iso()))
-    // }
-
-    // // fn generate2(self) -> Box<Iso::Super> {
-    // //     Box::new(self.expand())
-    // // }
-
-    // fn modify2(self: Arc<Self>, f: Mutation<Iso>) -> Box<Iso::Super> {
-    //     Box::new(f(self.as_iso()).expand())
-    // }
 }
 
-fn generate1<Iso: Isotest + 'static>(x: Iso) -> Gen<Iso> {
+/// The main dynamic generic type produced by isotest.
+/// You must implement your trait on `Ambi<YourTestStruct>`
+pub type Ambi<T> = Arc<dyn Runners<T>>;
+
+fn generate1<Iso: Isotest + 'static>(x: Iso) -> Ambi<Iso> {
     Arc::new(x)
 }
 
-fn modify1<Iso: Isotest + 'static>(x: Gen<Iso>, f: Mutation<Iso>) -> Gen<Iso> {
-    // Self::generate1(f(*self))
+fn generate2<Iso: Isotest + 'static>(x: Iso) -> Ambi<Iso> {
+    Arc::new(x.forward())
+}
+
+fn modify1<Iso: Isotest + 'static>(x: Ambi<Iso>, f: Mutation<Iso>) -> Ambi<Iso> {
     Arc::new(f(x.as_iso()))
 }
 
-fn modify2<Iso: Isotest + 'static>(x: Gen<Iso>, f: Mutation<Iso>) -> Gen<Iso> {
+fn modify2<Iso: Isotest + 'static>(x: Ambi<Iso>, f: Mutation<Iso>) -> Ambi<Iso> {
     // Self::generate1(f(*self))
-    Arc::new(f(x.as_iso()).expand())
+    Arc::new(f(x.as_iso()).forward())
 }
 
 type Mutation<T> = Box<dyn Fn(T) -> T>;
 
-type Gen<T> = Arc<dyn Runners<T>>;
-type Create<T> = Box<dyn Fn(T) -> Gen<T>>;
-type Update<T> = Box<dyn Fn(Gen<T>, Mutation<T>) -> Arc<dyn Runners<T>>>;
-// type Create<T: Isotest> = Box<dyn Fn(T) -> Gen<T>>;
-// type Update<T: Isotest> = Box<dyn Fn(Gen<T>, Mutation<T>) -> Gen<T>>;
+type Create<T> = Box<dyn Fn(T) -> Ambi<T>>;
+type Update<T> = Box<dyn Fn(Ambi<T>, Mutation<T>) -> Arc<dyn Runners<T>>>;
 
-// enum Closure<T> {
-//     Create(Create<T>),
-//     Update(Update<T>),
-// }
-
-// impl<A: Isotest> Closure<A> {
-//     fn expand(&self) -> Closure<A::Super> {
-//         match self {
-//             Self::Create(f) => Closure::Create(Box::new(|| f().expand())),
-//             Self::Update(f) => Closure::Update(Box::new(|a, f| f(A::condense(a)).expand())),
-//         }
-//     }
-// }
-
-pub fn run<I: Isotest + 'static>(
-    runner: impl Fn(Create<I>, Update<I>),
-    // runner2: impl Fn(Create<T>, Update<T>),
-) {
+pub fn run<I: Isotest + 'static>(runner: impl Fn(Create<I>, Update<I>)) {
     runner(Box::new(generate1), Box::new(modify1));
-    // runner2(Box::new(generate2), Box::new(modify2));
+    runner(Box::new(generate2), Box::new(modify2));
 }
