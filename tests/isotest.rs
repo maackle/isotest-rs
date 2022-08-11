@@ -11,8 +11,8 @@ struct TestStruct(u8);
 struct RealStruct(u8, u8);
 
 isotest::isotest! {
-    TestStruct : |a| { RealStruct(a.0, 0) },
-    RealStruct : |b| { TestStruct(b.0) },
+    TestStruct => |a| { RealStruct(a.0, 0) },
+    RealStruct => |b| { TestStruct(b.0) },
 }
 
 impl Common for TestStruct {
@@ -39,22 +39,16 @@ fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
 
 #[test]
 fn basic() {
-    // create: A -> X
-    // update: (A -> A) -> (X -> X)
-
     run(|create, update| {
         let x = create(TestStruct(1));
         let y = create(TestStruct(2));
         let z = create(TestStruct(3));
         assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6);
 
-        let y = update(
-            y,
-            Box::new(|mut y: TestStruct| {
-                y.0 = 4;
-                y
-            }),
-        );
+        let y = update(y, |mut y: TestStruct| {
+            y.0 = 4;
+            y
+        });
         assert_eq!(process([x, y, z].into_iter()), 8);
     });
 }
