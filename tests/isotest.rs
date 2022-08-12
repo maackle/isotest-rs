@@ -25,9 +25,9 @@ impl Common for RealStruct {
     }
 }
 
-impl Common for isotest::Ambi<TestStruct> {
+impl Common for isotest::Ambi<TestStruct, RealStruct> {
     fn num(&self) -> u8 {
-        (self.clone()).as_iso().num()
+        self.small().num()
     }
 }
 
