@@ -1,5 +1,7 @@
-use std::any::Any;
 use std::sync::Arc;
+
+/// The container type used
+pub type Bag<T> = Arc<T>;
 
 pub trait Iso: 'static {
     type Small: Clone + Iso<Small = Self::Small, Big = Self::Big>;
@@ -9,7 +11,7 @@ pub trait Iso: 'static {
     fn big(&self) -> Self::Big;
 }
 
-pub type Ambi<A, B> = std::sync::Arc<dyn Iso<Small = A, Big = B>>;
+pub type Ambi<A, B> = Bag<dyn Iso<Small = A, Big = B>>;
 
 #[macro_export]
 macro_rules! isotest {
@@ -50,9 +52,9 @@ macro_rules! isotest {
 //     B: Iso<Small = A, Big = B> + 'static,
 // {
 //     let any: &dyn Any = &iso;
-//     if let Some(a) = any.downcast_ref::<Arc<A>>() {
+//     if let Some(a) = any.downcast_ref::<Bag<A>>() {
 //         a.small()
-//     } else if let Some(b) = any.downcast_ref::<Arc<B>>() {
+//     } else if let Some(b) = any.downcast_ref::<Bag<B>>() {
 //         b.small()
 //     } else {
 //         panic!("item is not of either expected Ambi type")
@@ -64,7 +66,7 @@ where
     A: Iso<Small = A, Big = B> + 'static,
     B: Iso<Small = A, Big = B> + 'static,
 {
-    Arc::new(x)
+    Bag::new(x)
 }
 
 fn generate2<A, B>(x: A) -> Ambi<A, B>
@@ -72,7 +74,7 @@ where
     A: Iso<Small = A, Big = B> + 'static,
     B: Iso<Small = A, Big = B> + 'static,
 {
-    Arc::new(x.big())
+    Bag::new(x.big())
 }
 
 fn modify1<A, B, M>(x: Ambi<A, B>, f: M) -> Ambi<A, B>
@@ -81,7 +83,7 @@ where
     B: Clone + Iso<Small = A, Big = B> + 'static,
     M: Fn(A) -> A,
 {
-    Arc::new(f(x.small()))
+    Bag::new(f(x.small()))
 }
 
 fn modify2<A, B, M>(x: Ambi<A, B>, f: M) -> Ambi<A, B>
@@ -90,7 +92,7 @@ where
     B: Clone + Iso<Small = A, Big = B> + 'static,
     M: Fn(A) -> A,
 {
-    Arc::new(f(x.small()).big())
+    Bag::new(f(x.small()).big())
 }
 
 type Create<A, B> = Box<dyn Fn(A) -> Ambi<A, B>>;

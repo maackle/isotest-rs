@@ -2,10 +2,10 @@ trait Common {
     fn num(&self) -> u8;
 }
 
-#[derive(Copy, Clone, Debug, derive_more::Add, derive_more::Sum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
 struct TestStruct(u8);
 
-#[derive(Copy, Clone, Debug, derive_more::Add, derive_more::Sum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
 struct RealStruct(u8, u8);
 
 isotest::isotest! {
