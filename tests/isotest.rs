@@ -1,3 +1,5 @@
+use isotest::Iso;
+
 trait Common {
     fn num(&self) -> u8;
 }
