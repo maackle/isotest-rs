@@ -47,40 +47,20 @@ pub type Update2<A, B> = Box<dyn Fn(B, Modify<A>) -> B>;
 
 #[macro_export]
 macro_rules! isotest {
-    (< $small:ty , $big:ty > $runner:expr) => {
-        // fn run1(runner: Box<dyn Fn(Create1<$small>, Update1<$small>)>) {
-        //     todo!()
-        // }
-        // fn run1<M, C, U>(runner: impl Fn(C, U))
-        // where
-        //     // A: Clone + Iso<Small = A, Big = B> + 'static,
-        //     // B: Clone + Iso<Small = A, Big = B> + 'static,
-        //     M: Fn($small) -> $small,
-        //     C: Fn($small) -> $small,
-        //     U: Fn($small, M) -> $small,
-        // {
-        //     todo!()
-        // }
-
-        {
-            let gen1: $crate::Create1<$small> = Box::new(|x: $small| x);
-            let upd1: $crate::Update1<$small> =
-                Box::new(|x: $small, f: $crate::Modify<$small>| f(x));
-            let run: Box<dyn Fn($crate::Create1<$small>, $crate::Update1<$small>)> =
-                Box::new($runner);
-            run(gen1, upd1);
-        }
-
-        {
-            let gen2: $crate::Create2<$small, $big> = Box::new(|x: $small| x.big());
-            let upd2: $crate::Update2<$small, $big> =
-                Box::new(|x: $big, f: $crate::Modify<$small>| f(x.small()).big());
-            let run: Box<dyn Fn($crate::Create2<$small, $big>, $crate::Update2<$small, $big>)> =
-                Box::new($runner);
-            run(gen2, upd2);
-        }
-    };
+    (< $small:ty , $big:ty > $runner:expr) => {{
+        // This is the test using the "small" struct
+        let gen1: $crate::Create1<$small> = Box::new(|x: $small| x);
+        let upd1: $crate::Update1<$small> = Box::new(|x: $small, f: $crate::Modify<$small>| f(x));
+        let run: Box<dyn Fn($crate::Create1<$small>, $crate::Update1<$small>)> = Box::new($runner);
+        run(gen1, upd1);
+    }
+    {
+        // This is the test using the "big" struct
+        let gen2: $crate::Create2<$small, $big> = Box::new(|x: $small| x.big());
+        let upd2: $crate::Update2<$small, $big> =
+            Box::new(|x: $big, f: $crate::Modify<$small>| f(x.small()).big());
+        let run: Box<dyn Fn($crate::Create2<$small, $big>, $crate::Update2<$small, $big>)> =
+            Box::new($runner);
+        run(gen2, upd2);
+    }};
 }
-
-// type Create<A, B> = Box<dyn Fn(A) -> Ambi<A, B>>;
-// type Update<A, B, M> = Box<dyn Fn(Ambi<A, B>, M) -> Ambi<A, B>>;

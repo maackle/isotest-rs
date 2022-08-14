@@ -16,10 +16,11 @@ isotest::iso! {
     TestStruct => |a| { RealStruct(a.0, 0) },
     RealStruct => |b| { TestStruct(b.0) },
 }
-// isotest::iso! {
-//     TestStruct => |a| { BadStruct(a.0, 0) },
-//     BadStruct => |b| { TestStruct(b.0) },
-// }
+
+isotest::iso! {
+    TestStruct => |a| { BadStruct(a.0, 0) },
+    BadStruct => |b| { TestStruct(b.0) },
+}
 
 impl Common for TestStruct {
     fn num(&self) -> u8 {
@@ -33,6 +34,13 @@ impl Common for RealStruct {
     }
 }
 
+// This is a faulty implementation!
+impl Common for BadStruct {
+    fn num(&self) -> u8 {
+        self.0 * self.1
+    }
+}
+
 fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
     ts.map(|t| Common::num(&t)).sum()
 }
@@ -40,6 +48,22 @@ fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
 #[test]
 fn basic() {
     isotest::isotest!(<TestStruct, RealStruct> |create, update| {
+        let x = create(TestStruct(1));
+        let y = create(TestStruct(2));
+        let z = create(TestStruct(3));
+        assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6);
+
+        let y = update(y, Box::new(|mut y: TestStruct| {
+            y.0 = 4;
+            y
+        }));
+        assert_eq!(process([x, y, z].into_iter()), 8);
+    });
+}
+
+#[test]
+fn big_fails() {
+    isotest::isotest!(<TestStruct, BadStruct> |create, update| {
         let x = create(TestStruct(1));
         let y = create(TestStruct(2));
         let z = create(TestStruct(3));
