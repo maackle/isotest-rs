@@ -2,6 +2,8 @@
 
 #![warn(missing_docs)]
 
+use std::marker::PhantomData;
+
 /// Which of the two contexts each isotest body will run under.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IsotestContext {
@@ -135,33 +137,49 @@ macro_rules! isotest {
         use $crate::Iso;
         {
             // This is the test using the "test" struct
-            let gen1: $crate::CreateTest<$test> = Box::new(|x: $test| x);
-            let upd1: $crate::UpdateTest<$test> =
-                Box::new(|x: $test, f: $crate::Modify<$test>| f(x));
-            let run: Box<
-                dyn Fn(
-                    $crate::CreateTest<$test>,
-                    $crate::UpdateTest<$test>,
-                    $crate::IsotestContext,
-                ),
-            > = Box::new($runner);
-            run(gen1, upd1, $crate::IsotestContext::Test);
+            let api = $crate::IsoTestApi(std::marker::PhantomData);
+            let run: Box<dyn Fn($crate::IsoTestApi<$test>)> = Box::new($runner);
+            run(api);
         }
         {
             // This is the test using the "real" struct
-            let gen2: $crate::CreateReal<$test, $real> = Box::new(|x: $test| x.real());
-            let upd2: $crate::UpdateReal<$test, $real> =
-                Box::new(|x: $real, f: $crate::Modify<$test>| f(x.test()).real());
-            let run: Box<
-                dyn Fn(
-                    $crate::CreateReal<$test, $real>,
-                    $crate::UpdateReal<$test, $real>,
-                    $crate::IsotestContext,
-                ),
-            > = Box::new($runner);
-            run(gen2, upd2, $crate::IsotestContext::Real);
+            let api = $crate::IsoRealApi(std::marker::PhantomData);
+            let run: Box<dyn Fn($crate::IsoRealApi<$test, $real>)> = Box::new($runner);
+            run(api);
         }
     };
+}
+
+pub struct IsoTestApi<A>(pub PhantomData<A>);
+
+impl<A> IsoTestApi<A> {
+    pub fn create(&self, a: A) -> A {
+        a
+    }
+    pub fn update(&self, a: A, f: impl Fn(A) -> A) -> A {
+        f(a)
+    }
+    pub fn context(&self) -> IsotestContext {
+        IsotestContext::Test
+    }
+}
+
+pub struct IsoRealApi<A, B>(pub PhantomData<(A, B)>);
+
+impl<A, B> IsoRealApi<A, B>
+where
+    A: Clone + Iso<A, B>,
+    B: Clone + Iso<A, B>,
+{
+    pub fn create(&self, a: A) -> B {
+        a.real()
+    }
+    pub fn update(&self, x: B, f: impl Fn(A) -> A) -> B {
+        f(x.test()).real()
+    }
+    pub fn context(&self) -> IsotestContext {
+        IsotestContext::Real
+    }
 }
 
 /// The argument to an isotest `update` function

@@ -47,13 +47,13 @@ fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
 
 #[test]
 fn basic() {
-    isotest::isotest!(<TestStruct, RealStruct> |create, update, _| {
-        let x = create(TestStruct(1));
-        let y = create(TestStruct(2));
-        let z = create(TestStruct(3));
+    isotest::isotest!(<TestStruct, RealStruct> |iso| {
+        let x = iso.create(TestStruct(1));
+        let y = iso.create(TestStruct(2));
+        let z = iso.create(TestStruct(3));
         assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6);
 
-        let y = update(y, Box::new(|mut y: TestStruct| {
+        let y = iso.update(y, Box::new(|mut y: TestStruct| {
             y.0 = 4;
             y
         }));
@@ -65,17 +65,17 @@ fn basic() {
 #[test]
 fn big_fails() {
     isotest::isotest!(
-        < TestStruct, BadStruct > |create, update, ctx| {
-            let x = create(TestStruct(1));
-            let y = create(TestStruct(2));
-            let z = create(TestStruct(3));
+        < TestStruct, BadStruct > |iso| {
+            let x = iso.create(TestStruct(1));
+            let y = iso.create(TestStruct(2));
+            let z = iso.create(TestStruct(3));
 
-            match ctx {
+            match iso.context() {
                 IsotestContext::Test => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6),
                 IsotestContext::Real => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 0),
             }
 
-            let y = update(
+            let y = iso.update(
                 y,
                 Box::new(|mut y: TestStruct| {
                     y.0 = 4;
@@ -83,7 +83,7 @@ fn big_fails() {
                 }),
             );
 
-            match ctx {
+            match iso.context() {
                 IsotestContext::Test => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 8),
                 IsotestContext::Real => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 0),
             }
