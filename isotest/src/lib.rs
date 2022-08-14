@@ -131,29 +131,37 @@ macro_rules! iso {
 /// ```
 #[macro_export]
 macro_rules! isotest {
-    (< $test:ty , $real:ty > $runner:expr) => {{
-        // This is the test using the "test" struct
-        let gen1: $crate::CreateTest<$test> = Box::new(|x: $test| x);
-        let upd1: $crate::UpdateTest<$test> = Box::new(|x: $test, f: $crate::Modify<$test>| f(x));
-        let run: Box<
-            dyn Fn($crate::CreateTest<$test>, $crate::UpdateTest<$test>, $crate::IsotestContext),
-        > = Box::new($runner);
-        run(gen1, upd1, $crate::IsotestContext::Test);
-    }
-    {
-        // This is the test using the "real" struct
-        let gen2: $crate::CreateReal<$test, $real> = Box::new(|x: $test| x.real());
-        let upd2: $crate::UpdateReal<$test, $real> =
-            Box::new(|x: $real, f: $crate::Modify<$test>| f(x.test()).real());
-        let run: Box<
-            dyn Fn(
-                $crate::CreateReal<$test, $real>,
-                $crate::UpdateReal<$test, $real>,
-                $crate::IsotestContext,
-            ),
-        > = Box::new($runner);
-        run(gen2, upd2, $crate::IsotestContext::Real);
-    }};
+    (< $test:ty , $real:ty > $runner:expr) => {
+        use $crate::Iso;
+        {
+            // This is the test using the "test" struct
+            let gen1: $crate::CreateTest<$test> = Box::new(|x: $test| x);
+            let upd1: $crate::UpdateTest<$test> =
+                Box::new(|x: $test, f: $crate::Modify<$test>| f(x));
+            let run: Box<
+                dyn Fn(
+                    $crate::CreateTest<$test>,
+                    $crate::UpdateTest<$test>,
+                    $crate::IsotestContext,
+                ),
+            > = Box::new($runner);
+            run(gen1, upd1, $crate::IsotestContext::Test);
+        }
+        {
+            // This is the test using the "real" struct
+            let gen2: $crate::CreateReal<$test, $real> = Box::new(|x: $test| x.real());
+            let upd2: $crate::UpdateReal<$test, $real> =
+                Box::new(|x: $real, f: $crate::Modify<$test>| f(x.test()).real());
+            let run: Box<
+                dyn Fn(
+                    $crate::CreateReal<$test, $real>,
+                    $crate::UpdateReal<$test, $real>,
+                    $crate::IsotestContext,
+                ),
+            > = Box::new($runner);
+            run(gen2, upd2, $crate::IsotestContext::Real);
+        }
+    };
 }
 
 /// The argument to an isotest `update` function

@@ -1,4 +1,4 @@
-use isotest::{Iso, IsotestContext};
+use isotest::IsotestContext;
 
 trait Common {
     fn num(&self) -> u8;
