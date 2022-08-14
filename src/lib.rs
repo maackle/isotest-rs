@@ -137,31 +137,31 @@ macro_rules! isotest {
         use $crate::Iso;
         {
             // This is the test using the "test" struct
-            let api = $crate::IsoTestApi(std::marker::PhantomData);
-            let run: Box<dyn Fn($crate::IsoTestApi<$test>)> = Box::new($runner);
+            let api = $crate::IsoTestApi;
+            let run: Box<dyn Fn($crate::IsoTestApi)> = Box::new($runner);
             run(api);
         }
         {
             // This is the test using the "real" struct
-            let api = $crate::IsoRealApi(std::marker::PhantomData);
-            let run: Box<dyn Fn($crate::IsoRealApi<$test, $real>)> = Box::new($runner);
+            let api = $crate::IsoRealApi;
+            let run: Box<dyn Fn($crate::IsoRealApi)> = Box::new($runner);
             run(api);
         }
     };
 }
 
-pub struct IsoTestApi<A>(pub PhantomData<A>);
+pub struct IsoTestApi;
 
-impl<A> IsoTestApi<A> {
-    pub fn create(&self, a: A) -> A {
+impl IsoTestApi {
+    pub fn create<A>(&self, a: A) -> A {
         a
     }
 
-    pub fn update(&self, a: A, f: impl Fn(A) -> A) -> A {
+    pub fn update<A>(&self, a: A, f: impl Fn(A) -> A) -> A {
         f(a)
     }
 
-    pub fn mutate(&self, a: &mut A, f: impl Fn(&mut A)) {
+    pub fn mutate<A>(&self, a: &mut A, f: impl Fn(&mut A)) {
         f(a)
     }
 
@@ -170,22 +170,30 @@ impl<A> IsoTestApi<A> {
     }
 }
 
-pub struct IsoRealApi<A, B>(pub PhantomData<(A, B)>);
+pub struct IsoRealApi;
 
-impl<A, B> IsoRealApi<A, B>
-where
-    A: Clone + Iso<A, B>,
-    B: Clone + Iso<A, B>,
-{
-    pub fn create(&self, a: A) -> B {
+impl IsoRealApi {
+    pub fn create<A, B>(&self, a: A) -> B
+    where
+        A: Clone + Iso<A, B>,
+        B: Clone + Iso<A, B>,
+    {
         a.real()
     }
 
-    pub fn update(&self, x: B, f: impl Fn(A) -> A) -> B {
+    pub fn update<A, B>(&self, x: B, f: impl Fn(A) -> A) -> B
+    where
+        A: Clone + Iso<A, B>,
+        B: Clone + Iso<A, B>,
+    {
         f(x.test()).real()
     }
 
-    pub fn mutate(&self, x: &mut B, f: impl Fn(&mut A)) {
+    pub fn mutate<A, B>(&self, x: &mut B, f: impl Fn(&mut A))
+    where
+        A: Clone + Iso<A, B>,
+        B: Clone + Iso<A, B>,
+    {
         let mut t = x.test();
         f(&mut t);
         std::mem::replace(x, t.real());
