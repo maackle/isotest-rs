@@ -3,41 +3,36 @@ use std::sync::Arc;
 /// The container type used
 pub type Bag<T> = Arc<T>;
 
-pub trait Iso: 'static {
-    type Small: Clone + Iso<Small = Self::Small, Big = Self::Big>;
-    type Big: Clone + Iso<Small = Self::Small, Big = Self::Big>;
-
-    fn small(&self) -> Self::Small;
-    fn big(&self) -> Self::Big;
+pub trait Iso<Small, Big>: 'static
+where
+    Small: Clone + Iso<Small, Big>,
+    Big: Clone + Iso<Small, Big>,
+{
+    fn small(&self) -> Small;
+    fn big(&self) -> Big;
 }
 
 #[macro_export]
 macro_rules! iso {
     ($a:ty => $forward:expr, $b:ty => $backward:expr $(,)?) => {
-        impl $crate::Iso for $a {
-            type Small = $a;
-            type Big = $b;
-
-            fn small(&self) -> Self::Small {
+        impl $crate::Iso<$a, $b> for $a {
+            fn small(&self) -> $a {
                 self.clone()
             }
 
-            fn big(&self) -> Self::Big {
+            fn big(&self) -> $b {
                 let f: Box<dyn Fn($a) -> $b> = Box::new($forward);
                 f(self.clone())
             }
         }
 
-        impl $crate::Iso for $b {
-            type Small = $a;
-            type Big = $b;
-
-            fn small(&self) -> Self::Small {
+        impl $crate::Iso<$a, $b> for $b {
+            fn small(&self) -> $a {
                 let f: Box<dyn Fn($b) -> $a> = Box::new($backward);
                 f(self.clone())
             }
 
-            fn big(&self) -> Self::Big {
+            fn big(&self) -> $b {
                 self.clone()
             }
         }
