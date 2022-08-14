@@ -53,15 +53,15 @@ fn basic() {
         let mut z = iso.create(TestStruct(3));
         assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6);
 
-        let y = iso.update(y, Box::new(|mut y: TestStruct| {
+        let y = iso.update(y, |mut y| {
             y.0 = 4;
             y
-        }));
+        });
         assert_eq!(process([x, y, z].into_iter()), 8);
 
-        iso.mutate(&mut z, Box::new(|z: &mut TestStruct| {
+        iso.mutate(&mut z, |z| {
             z.0 = 10;
-        }));
+        });
         assert_eq!(process([x, y, z].into_iter()), 15);
     });
 }
@@ -82,10 +82,10 @@ fn big_fails() {
 
             let y = iso.update(
                 y,
-                Box::new(|mut y: TestStruct| {
+                |mut y| {
                     y.0 = 4;
                     y
-                }),
+                },
             );
 
             match iso.context() {
