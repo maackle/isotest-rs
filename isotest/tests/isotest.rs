@@ -50,7 +50,7 @@ fn basic() {
     isotest::isotest!(<TestStruct, RealStruct> |iso| {
         let x = iso.create(TestStruct(1));
         let y = iso.create(TestStruct(2));
-        let z = iso.create(TestStruct(3));
+        let mut z = iso.create(TestStruct(3));
         assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6);
 
         let y = iso.update(y, Box::new(|mut y: TestStruct| {
@@ -58,6 +58,11 @@ fn basic() {
             y
         }));
         assert_eq!(process([x, y, z].into_iter()), 8);
+
+        iso.mutate(&mut z, Box::new(|z: &mut TestStruct| {
+            z.0 = 10;
+        }));
+        assert_eq!(process([x, y, z].into_iter()), 15);
     });
 }
 

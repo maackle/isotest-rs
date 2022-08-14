@@ -156,9 +156,15 @@ impl<A> IsoTestApi<A> {
     pub fn create(&self, a: A) -> A {
         a
     }
+
     pub fn update(&self, a: A, f: impl Fn(A) -> A) -> A {
         f(a)
     }
+
+    pub fn mutate(&self, a: &mut A, f: impl Fn(&mut A)) {
+        f(a)
+    }
+
     pub fn context(&self) -> IsotestContext {
         IsotestContext::Test
     }
@@ -174,9 +180,17 @@ where
     pub fn create(&self, a: A) -> B {
         a.real()
     }
+
     pub fn update(&self, x: B, f: impl Fn(A) -> A) -> B {
         f(x.test()).real()
     }
+
+    pub fn mutate(&self, x: &mut B, f: impl Fn(&mut A)) {
+        let mut t = x.test();
+        f(&mut t);
+        std::mem::replace(x, t.real());
+    }
+
     pub fn context(&self) -> IsotestContext {
         IsotestContext::Real
     }
