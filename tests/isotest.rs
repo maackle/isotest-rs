@@ -33,12 +33,6 @@ impl Common for RealStruct {
     }
 }
 
-impl Common for isotest::Ambi<TestStruct, RealStruct> {
-    fn num(&self) -> u8 {
-        self.small().num()
-    }
-}
-
 fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
     ts.map(|t| Common::num(&t)).sum()
 }

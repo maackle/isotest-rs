@@ -11,32 +11,6 @@ pub trait Iso: 'static {
     fn big(&self) -> Self::Big;
 }
 
-#[derive(Clone)]
-pub struct Ambi<A, B>(Bag<dyn Iso<Small = A, Big = B>>);
-
-impl<A, B> Ambi<A, B> {
-    pub fn new(x: impl Iso<Small = A, Big = B>) -> Self {
-        Self(Bag::new(x))
-    }
-}
-
-impl<A, B> Iso for Ambi<A, B>
-where
-    A: Clone + Iso<Small = A, Big = B> + 'static,
-    B: Clone + Iso<Small = A, Big = B> + 'static,
-{
-    type Small = A;
-    type Big = B;
-
-    fn small(&self) -> Self::Small {
-        self.0.small()
-    }
-
-    fn big(&self) -> Self::Big {
-        self.0.big()
-    }
-}
-
 #[macro_export]
 macro_rules! iso {
     ($a:ty => $forward:expr, $b:ty => $backward:expr $(,)?) => {
