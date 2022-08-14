@@ -4,28 +4,35 @@ trait Common {
     fn num(&self) -> u8;
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
-struct TestStruct(u8);
-
+/// A struct representing real production data
 #[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
 struct RealStruct(u8, u8);
+
+/// A struct representing a subset of the production data
 #[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
-struct BadStruct(u8, u8);
+struct TestStruct(u8);
 
 isotest::iso! {
     TestStruct => |a| { RealStruct(a.0, 0) },
     RealStruct => |b| { TestStruct(b.0) },
 }
 
+/// Another subset representation of production data, but with a bad Common trait implementation
+#[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
+struct BadTestStruct(u8);
+
 isotest::iso! {
-    TestStruct => |a| { BadStruct(a.0, 0) },
-    BadStruct => |b| { TestStruct(b.0) },
+    BadTestStruct => |a| { RealStruct(a.0, 0) },
+    RealStruct => |b| { BadTestStruct(b.0) },
 }
 
-impl Common for TestStruct {
-    fn num(&self) -> u8 {
-        self.0
-    }
+/// Another subset representation of production data, but with a bad Iso trait implementation
+#[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
+struct BadderTestStruct(u8);
+
+isotest::iso! {
+    BadderTestStruct => |a| { RealStruct(a.0, 0) },
+    RealStruct => |b| { BadderTestStruct(b.0 + 1) },
 }
 
 impl Common for RealStruct {
@@ -34,10 +41,23 @@ impl Common for RealStruct {
     }
 }
 
-// This is a faulty implementation!
-impl Common for BadStruct {
+impl Common for TestStruct {
     fn num(&self) -> u8 {
-        self.0 * self.1
+        self.0
+    }
+}
+
+// This is a faulty implementation!
+impl Common for BadTestStruct {
+    fn num(&self) -> u8 {
+        self.0 + 1
+    }
+}
+
+// This is a faulty implementation!
+impl Common for BadderTestStruct {
+    fn num(&self) -> u8 {
+        self.0
     }
 }
 
@@ -66,18 +86,20 @@ fn basic() {
     });
 }
 
-/// Test that an incorrect
+/// Test that an incorrect trait implementation leads to a different test outcome.
+///
+/// A real test should not check the context.
 #[test]
 fn big_fails() {
     isotest::isotest!(
-        < TestStruct, BadStruct > |iso| {
-            let x = iso.create(TestStruct(1));
-            let y = iso.create(TestStruct(2));
-            let z = iso.create(TestStruct(3));
+        < BadTestStruct, RealStruct > |iso| {
+            let x = iso.create(BadTestStruct(1));
+            let y = iso.create(BadTestStruct(2));
+            let z = iso.create(BadTestStruct(3));
 
             match iso.context() {
-                IsotestContext::Test => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6),
-                IsotestContext::Real => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 0),
+                IsotestContext::Test => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 9),
+                IsotestContext::Real => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6),
             }
 
             let y = iso.update(
@@ -89,8 +111,8 @@ fn big_fails() {
             );
 
             match iso.context() {
-                IsotestContext::Test => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 8),
-                IsotestContext::Real => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 0),
+                IsotestContext::Test => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 11),
+                IsotestContext::Real => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 8),
             }
         }
     );

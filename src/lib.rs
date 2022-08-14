@@ -90,8 +90,6 @@ macro_rules! iso {
 
 ///
 /// ```rust
-/// use isotest::Iso;
-///
 /// #[derive(Clone, Debug, PartialEq)]
 /// struct A(u8);
 /// #[derive(Clone, Debug, PartialEq)]
@@ -120,13 +118,12 @@ macro_rules! iso {
 ///
 /// isotest::isotest! {
 ///     <A, B>
-///     |create, update, _| {
-///         let a = create(A(1));
+///     |iso| {
+///         let mut a = iso.create(A(1));
 ///         assert_eq!(a.num(), 1);
-///         let a = update(a, Box::new(|mut a| {
+///         iso.mutate(&mut a, |a| {
 ///             a.0 = 2;
-///             a
-///         }));
+///         });
 ///         assert_eq!(a.num(), 2);
 ///     }
 /// }
