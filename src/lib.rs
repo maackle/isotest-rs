@@ -38,7 +38,7 @@ where
 }
 
 #[macro_export]
-macro_rules! isotest {
+macro_rules! iso {
     ($a:ty => $forward:expr, $b:ty => $backward:expr $(,)?) => {
         impl $crate::Iso for $a {
             type Small = $a;
@@ -70,88 +70,48 @@ macro_rules! isotest {
     };
 }
 
-fn generate1<A, B>(x: A) -> Ambi<A, B>
-where
-    A: Iso<Small = A, Big = B> + 'static,
-    B: Iso<Small = A, Big = B> + 'static,
-{
-    Ambi::new(x)
+pub type Modify<A> = Box<dyn Fn(A) -> A>;
+pub type Create1<A> = Box<dyn Fn(A) -> A>;
+pub type Update1<A> = Box<dyn Fn(A, Modify<A>) -> A>;
+pub type Create2<A, B> = Box<dyn Fn(A) -> B>;
+pub type Update2<A, B> = Box<dyn Fn(B, Modify<A>) -> B>;
+
+#[macro_export]
+macro_rules! isotest {
+    (< $small:ty , $big:ty > $runner:expr) => {
+        // fn run1(runner: Box<dyn Fn(Create1<$small>, Update1<$small>)>) {
+        //     todo!()
+        // }
+        // fn run1<M, C, U>(runner: impl Fn(C, U))
+        // where
+        //     // A: Clone + Iso<Small = A, Big = B> + 'static,
+        //     // B: Clone + Iso<Small = A, Big = B> + 'static,
+        //     M: Fn($small) -> $small,
+        //     C: Fn($small) -> $small,
+        //     U: Fn($small, M) -> $small,
+        // {
+        //     todo!()
+        // }
+
+        {
+            let gen1: $crate::Create1<$small> = Box::new(|x: $small| x);
+            let upd1: $crate::Update1<$small> =
+                Box::new(|x: $small, f: $crate::Modify<$small>| f(x));
+            let run: Box<dyn Fn($crate::Create1<$small>, $crate::Update1<$small>)> =
+                Box::new($runner);
+            run(gen1, upd1);
+        }
+
+        {
+            let gen2: $crate::Create2<$small, $big> = Box::new(|x: $small| x.big());
+            let upd2: $crate::Update2<$small, $big> =
+                Box::new(|x: $big, f: $crate::Modify<$small>| f(x.small()).big());
+            let run: Box<dyn Fn($crate::Create2<$small, $big>, $crate::Update2<$small, $big>)> =
+                Box::new($runner);
+            run(gen2, upd2);
+        }
+    };
 }
 
-fn generate2<A, B>(x: A) -> Ambi<A, B>
-where
-    A: Iso<Small = A, Big = B> + 'static,
-    B: Iso<Small = A, Big = B> + 'static,
-{
-    Ambi::new(x.big())
-}
-
-fn modify1<A, B, M>(x: Ambi<A, B>, f: M) -> Ambi<A, B>
-where
-    A: Clone + Iso<Small = A, Big = B> + 'static,
-    B: Clone + Iso<Small = A, Big = B> + 'static,
-    M: Fn(A) -> A,
-{
-    Ambi::new(f(x.small()))
-}
-
-fn modify2<A, B, M>(x: Ambi<A, B>, f: M) -> Ambi<A, B>
-where
-    A: Clone + Iso<Small = A, Big = B> + 'static,
-    B: Clone + Iso<Small = A, Big = B> + 'static,
-    M: Fn(A) -> A,
-{
-    Ambi::new(f(x.small()).big())
-}
-
-type Create<A, B> = Box<dyn Fn(A) -> Ambi<A, B>>;
-type Update<A, B, M> = Box<dyn Fn(Ambi<A, B>, M) -> Ambi<A, B>>;
-
-// pub fn run<A, B, M, C1, C2, U1, U2>(runner1: impl Fn(C1, U1), runner2: impl Fn(C2, U2))
-pub fn run<A, B, M>(
-    runner: impl Fn(Create<A, B>, Update<A, B, M>),
-    // runner2: impl Fn(Create<A, B>, Update<A, B, M>),
-) where
-    A: Clone + Iso<Small = A, Big = B> + 'static,
-    B: Clone + Iso<Small = A, Big = B> + 'static,
-    M: Fn(A) -> A + 'static,
-    // C1: Fn(A) -> A,
-    // C2: Fn(A) -> B,
-    // U1: Fn(A, M) -> A,
-    // U2: Fn(B, M) -> B,
-{
-    runner(Box::new(generate1), Box::new(modify1));
-    runner(Box::new(generate2), Box::new(modify2));
-    // runner1(Box::new(|x: A| x.small()), Box::new(|x, f| f(x.small())));
-    // runner2(Box::new(|x| x.big()), Box::new(|x, f| f(x.small()).big()));
-}
-
-impl<A, B> PartialEq for Ambi<A, B>
-where
-    A: PartialEq + Clone + Iso<Small = A, Big = B> + 'static,
-    B: PartialEq + Clone + Iso<Small = A, Big = B> + 'static,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.0.small().eq(&other.0.small())
-    }
-}
-
-impl<A, B> PartialOrd for Ambi<A, B>
-where
-    A: PartialOrd + Clone + Iso<Small = A, Big = B> + 'static,
-    B: PartialOrd + Clone + Iso<Small = A, Big = B> + 'static,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.small().partial_cmp(&other.0.small())
-    }
-}
-
-impl<A, B> std::fmt::Debug for Ambi<A, B>
-where
-    A: std::fmt::Debug + Clone + Iso<Small = A, Big = B> + 'static,
-    B: Clone + Iso<Small = A, Big = B> + 'static,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Ambi").field(&self.0.small()).finish()
-    }
-}
+// type Create<A, B> = Box<dyn Fn(A) -> Ambi<A, B>>;
+// type Update<A, B, M> = Box<dyn Fn(Ambi<A, B>, M) -> Ambi<A, B>>;
