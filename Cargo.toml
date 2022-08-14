@@ -1,4 +1,10 @@
-[workspace]
-members = [
-    "isotest",
-]
+[package]
+name = "isotest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+
+[dev-dependencies]
+derive_more = "0"
