@@ -7,7 +7,13 @@ license = "MIT"
 repository = "https://github.com/maackle/isotest-rust"
 
 [dependencies]
+futures = { version = "0.3", optional = true }
 
 [dev-dependencies]
 assert-panic = "1"
 derive_more = "0"
+smol = "1.2"
+
+[features]
+default = ["async"]
+async = ["futures"]

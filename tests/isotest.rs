@@ -1,3 +1,4 @@
+use futures::FutureExt;
 use isotest::{test_iso_invariants, IsotestContext};
 
 trait Common {
@@ -131,4 +132,19 @@ fn big_fails() {
             }
         }
     });
+}
+
+#[test]
+fn async_support() {
+    async fn f() -> u8 {
+        1
+    }
+
+    smol::block_on(async {
+        isotest::isotest!(async |iso| async move {
+            let x = iso.create(TestStruct(1));
+            assert_eq!(f().await, x.0);
+        }
+        .boxed());
+    })
 }
