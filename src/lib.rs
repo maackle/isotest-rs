@@ -147,28 +147,8 @@ where
 /// }
 /// ```
 ///
-#[cfg(feature = "async")]
 #[macro_export]
 macro_rules! isotest {
-    (async $runner:expr) => {
-        use $crate::Iso;
-        {
-            // This is the test using the "test" struct
-            let api = $crate::IsoTestApi;
-            let run: Box<
-                dyn Fn($crate::IsoTestApi) -> std::pin::Pin<Box<dyn futures::Future<Output = ()>>>,
-            > = Box::new($runner);
-            run(api).await;
-        }
-        {
-            // This is the test using the "real" struct
-            let api = $crate::IsoRealApi;
-            let run: Box<
-                dyn Fn($crate::IsoRealApi) -> std::pin::Pin<Box<dyn futures::Future<Output = ()>>>,
-            > = Box::new($runner);
-            run(api).await;
-        }
-    };
     ($runner:expr) => {
         use $crate::Iso;
         {
@@ -185,22 +165,29 @@ macro_rules! isotest {
         }
     };
 }
-#[cfg(not(feature = "async"))]
+
+/// A version of [`isotest!`] which returns `Future<Output = ()>` instead of `()`
+/// and supports `async` syntax.
+#[cfg(feature = "async")]
 #[macro_export]
-macro_rules! isotest {
+macro_rules! isotest_async {
     ($runner:expr) => {
         use $crate::Iso;
         {
             // This is the test using the "test" struct
             let api = $crate::IsoTestApi;
-            let run: Box<dyn Fn($crate::IsoTestApi)> = Box::new($runner);
-            run(api);
+            let run: Box<
+                dyn Fn($crate::IsoTestApi) -> std::pin::Pin<Box<dyn futures::Future<Output = ()>>>,
+            > = Box::new($runner);
+            run(api).await;
         }
         {
             // This is the test using the "real" struct
             let api = $crate::IsoRealApi;
-            let run: Box<dyn Fn($crate::IsoRealApi)> = Box::new($runner);
-            run(api);
+            let run: Box<
+                dyn Fn($crate::IsoRealApi) -> std::pin::Pin<Box<dyn futures::Future<Output = ()>>>,
+            > = Box::new($runner);
+            run(api).await;
         }
     };
 }

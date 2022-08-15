@@ -141,7 +141,7 @@ fn async_support() {
     }
 
     smol::block_on(async {
-        isotest::isotest!(async |iso| async move {
+        isotest::isotest_async!(|iso| async move {
             let x = iso.create(TestStruct(1));
             assert_eq!(f().await, x.0);
         }
