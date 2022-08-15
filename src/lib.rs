@@ -165,17 +165,34 @@ macro_rules! isotest {
     };
 }
 
+/// The API passed into an isotest in the Test context.
+///
+/// The `isotest!` macro is a bit sneaky, passing in APIs with different
+/// function signatures for each context, so that the test can be written
+/// the same lexically, but actually expand to two different tests
+/// working with two different types.
 pub struct IsoTestApi;
 
+/// The API passed into an isotest in the Real context.
+///
+/// The `isotest!` macro is a bit sneaky, passing in APIs with different
+/// function signatures for each context, so that the test can be written
+/// the same lexically, but actually expand to two different tests
+/// working with two different types.
+pub struct IsoRealApi;
+
 impl IsoTestApi {
+    /// Create test data from test data (identity function)
     pub fn create<A>(&self, a: A) -> A {
         a
     }
 
+    /// Update test data with a function over test data (simple map)
     pub fn update<A: Iso, F: Fn(A) -> A>(&self, a: A, f: F) -> A {
         f(a)
     }
 
+    /// Mutate test data with a function over test data (simple mutable map)
     pub fn mutate<A, F>(&self, a: &mut A, f: F)
     where
         F: Fn(&mut A),
@@ -183,14 +200,14 @@ impl IsoTestApi {
         f(a)
     }
 
+    /// Return the context we're in
     pub fn context(&self) -> IsotestContext {
         IsotestContext::Test
     }
 }
 
-pub struct IsoRealApi;
-
 impl IsoRealApi {
+    /// Create real data from test data
     pub fn create<A, B>(&self, a: A) -> B
     where
         A: Iso<Real = B>,
@@ -199,6 +216,7 @@ impl IsoRealApi {
         a.real()
     }
 
+    /// Update real data with a function over test data
     pub fn update<A, F: Fn(A) -> A>(&self, x: A::Real, f: F) -> A::Real
     where
         A: Iso,
@@ -206,6 +224,7 @@ impl IsoRealApi {
         f(A::test(&x)).real()
     }
 
+    /// Mutate real data with a function over test data (simple mutable map)
     pub fn mutate<A, F>(&self, x: &mut A::Real, f: F)
     where
         A: Iso,
@@ -213,9 +232,10 @@ impl IsoRealApi {
     {
         let mut t = A::test(x);
         f(&mut t);
-        std::mem::replace(x, t.real());
+        let _ = std::mem::replace(x, t.real());
     }
 
+    /// Return the context we're in
     pub fn context(&self) -> IsotestContext {
         IsotestContext::Real
     }
