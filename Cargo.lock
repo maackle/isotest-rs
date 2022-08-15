@@ -308,7 +308,7 @@ dependencies = [
 
 [[package]]
 name = "isotest"
-version = "0.1.0-dev.0"
+version = "0.1.0-dev.1"
 dependencies = [
  "assert-panic",
  "derive_more",
