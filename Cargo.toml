@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 
 [dev-dependencies]
+assert-panic = "1"
 derive_more = "0"

@@ -1,4 +1,4 @@
-use isotest::IsotestContext;
+use isotest::{test_iso_invariants, IsotestContext};
 
 trait Common {
     fn num(&self) -> u8;
@@ -63,6 +63,18 @@ impl Common for BadderTestStruct {
 
 fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
     ts.map(|t| Common::num(&t)).sum()
+}
+
+#[test]
+fn invariants() {
+    test_iso_invariants(TestStruct(42), RealStruct(101, 222));
+    test_iso_invariants(BadTestStruct(42), RealStruct(101, 222));
+
+    assert_panic::assert_panic! {
+        test_iso_invariants(BadderTestStruct(42), RealStruct(101, 222)),
+        String,
+        contains "test -> real -> test roundtrip should leave original value unchanged"
+    };
 }
 
 #[test]
