@@ -72,6 +72,13 @@ macro_rules! iso {
                 f(self.clone())
             }
         }
+
+        impl From<$a> for $b {
+            fn from(a: $a) -> $b {
+                use $crate::Iso;
+                a.real()
+            }
+        }
     };
 }
 
