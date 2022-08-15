@@ -2,8 +2,6 @@
 
 #![warn(missing_docs)]
 
-use std::marker::PhantomData;
-
 /// Which of the two contexts each isotest body will run under.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IsotestContext {
@@ -15,15 +13,15 @@ pub enum IsotestContext {
 
 /// Trait that declares the relationship between a "test" and "real struct",
 /// namely how to go back and forth between the two.
-pub trait Iso<Real>: 'static
-where
-    Real: Clone,
-{
+pub trait Iso {
+    /// The real data which corresponds to the type this trait is defined for
+    type Real: Clone;
+
     /// Return the test version of this data, mapping if necessary.
     ///
     /// The test data must be a subset of the real data, so that this
     /// transformation is never lossy.
-    fn test(x: &Real) -> Self;
+    fn test(x: &Self::Real) -> Self;
 
     /// Return the real version of this data, mapping if necessary.
     ///
@@ -32,7 +30,7 @@ where
     /// the rest. In fact, it is best if truly random arbitrary
     /// data is used, as this will act as a fuzz test of your
     /// trait implementation.
-    fn real(&self) -> Real;
+    fn real(&self) -> Self::Real;
 }
 
 /// Helper to define a two-way [`Iso`] relationship between test data
@@ -61,7 +59,9 @@ where
 #[macro_export]
 macro_rules! iso {
     ($a:ty => $forward:expr, $b:ty => $backward:expr $(,)?) => {
-        impl $crate::Iso<$b> for $a {
+        impl $crate::Iso for $a {
+            type Real = $b;
+
             fn test(x: &$b) -> $a {
                 let f: Box<dyn Fn($b) -> $a> = Box::new($backward);
                 f(x.clone())
@@ -108,7 +108,7 @@ macro_rules! iso {
 ///     |iso| {
 ///         let mut a = iso.create(A(1));
 ///         assert_eq!(a.num(), 1);
-///         iso.mutate(&mut a, |a| {
+///         iso.mutate::<A, _>(&mut a, |a| {
 ///             a.0 = 2;
 ///         });
 ///         assert_eq!(a.num(), 2);
@@ -117,35 +117,38 @@ macro_rules! iso {
 /// ```
 #[macro_export]
 macro_rules! isotest {
-    (< $test:ty , $real:ty > $runner:expr) => {
+    ($runner:expr) => {
         use $crate::Iso;
         {
             // This is the test using the "test" struct
-            let api = $crate::IsoTestApi(std::marker::PhantomData);
-            let run: Box<dyn Fn($crate::IsoTestApi<$test>)> = Box::new($runner);
+            let api = $crate::IsoTestApi;
+            let run: Box<dyn Fn($crate::IsoTestApi)> = Box::new($runner);
             run(api);
         }
         {
             // This is the test using the "real" struct
-            let api = $crate::IsoRealApi(std::marker::PhantomData);
-            let run: Box<dyn Fn($crate::IsoRealApi<$test, $real>)> = Box::new($runner);
+            let api = $crate::IsoRealApi;
+            let run: Box<dyn Fn($crate::IsoRealApi)> = Box::new($runner);
             run(api);
         }
     };
 }
 
-pub struct IsoTestApi<A>(pub PhantomData<A>);
+pub struct IsoTestApi;
 
-impl<A> IsoTestApi<A> {
-    pub fn create(&self, a: A) -> A {
+impl IsoTestApi {
+    pub fn create<A>(&self, a: A) -> A {
         a
     }
 
-    pub fn update(&self, a: A, f: impl Fn(A) -> A) -> A {
+    pub fn update<A: Iso, F: Fn(A) -> A>(&self, a: A, f: F) -> A {
         f(a)
     }
 
-    pub fn mutate(&self, a: &mut A, f: impl Fn(&mut A)) {
+    pub fn mutate<A, F>(&self, a: &mut A, f: F)
+    where
+        F: Fn(&mut A),
+    {
         f(a)
     }
 
@@ -154,22 +157,29 @@ impl<A> IsoTestApi<A> {
     }
 }
 
-pub struct IsoRealApi<A, B>(pub PhantomData<(A, B)>);
+pub struct IsoRealApi;
 
-impl<A, B> IsoRealApi<A, B>
-where
-    A: Iso<B>,
-    B: Clone,
-{
-    pub fn create(&self, a: A) -> B {
+impl IsoRealApi {
+    pub fn create<A, B>(&self, a: A) -> B
+    where
+        A: Iso<Real = B>,
+        B: Clone,
+    {
         a.real()
     }
 
-    pub fn update(&self, x: B, f: impl Fn(A) -> A) -> B {
+    pub fn update<A, F: Fn(A) -> A>(&self, x: A::Real, f: F) -> A::Real
+    where
+        A: Iso,
+    {
         f(A::test(&x)).real()
     }
 
-    pub fn mutate(&self, x: &mut B, f: impl Fn(&mut A)) {
+    pub fn mutate<A, F>(&self, x: &mut A::Real, f: F)
+    where
+        A: Iso,
+        F: Fn(&mut A),
+    {
         let mut t = A::test(x);
         f(&mut t);
         std::mem::replace(x, t.real());

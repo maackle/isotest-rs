@@ -67,19 +67,19 @@ fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
 
 #[test]
 fn basic() {
-    isotest::isotest!(<TestStruct, RealStruct> |iso| {
+    isotest::isotest!(|iso| {
         let x = iso.create(TestStruct(1));
         let y = iso.create(TestStruct(2));
         let mut z = iso.create(TestStruct(3));
         assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6);
 
-        let y = iso.update(y, |mut y| {
+        let y = iso.update::<TestStruct, _>(y, |mut y| {
             y.0 = 4;
             y
         });
         assert_eq!(process([x, y, z].into_iter()), 8);
 
-        iso.mutate(&mut z, |z| {
+        iso.mutate::<TestStruct, _>(&mut z, |z| {
             z.0 = 10;
         });
         assert_eq!(process([x, y, z].into_iter()), 15);
@@ -91,29 +91,32 @@ fn basic() {
 /// A real test should not check the context.
 #[test]
 fn big_fails() {
-    isotest::isotest!(
-        < BadTestStruct, RealStruct > |iso| {
-            let x = iso.create(BadTestStruct(1));
-            let y = iso.create(BadTestStruct(2));
-            let z = iso.create(BadTestStruct(3));
+    isotest::isotest!(|iso| {
+        let x = iso.create(BadTestStruct(1));
+        let y = iso.create(BadTestStruct(2));
+        let z = iso.create(BadTestStruct(3));
 
-            match iso.context() {
-                IsotestContext::Test => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 9),
-                IsotestContext::Real => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6),
+        match iso.context() {
+            IsotestContext::Test => {
+                assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 9)
             }
-
-            let y = iso.update(
-                y,
-                |mut y| {
-                    y.0 = 4;
-                    y
-                },
-            );
-
-            match iso.context() {
-                IsotestContext::Test => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 11),
-                IsotestContext::Real => assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 8),
+            IsotestContext::Real => {
+                assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6)
             }
         }
-    );
+
+        let y = iso.update::<BadTestStruct, _>(y, |mut y| {
+            y.0 = 4;
+            y
+        });
+
+        match iso.context() {
+            IsotestContext::Test => {
+                assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 11)
+            }
+            IsotestContext::Real => {
+                assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 8)
+            }
+        }
+    });
 }
