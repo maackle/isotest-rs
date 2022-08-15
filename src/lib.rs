@@ -13,9 +13,9 @@ pub enum IsotestContext {
 
 /// Trait that declares the relationship between a "test" and "real struct",
 /// namely how to go back and forth between the two.
-pub trait Iso {
+pub trait Iso: Sized {
     /// The real data which corresponds to the type this trait is defined for
-    type Real: Clone;
+    type Real: Clone + From<Self>;
 
     /// Return the test version of this data, mapping if necessary.
     ///
