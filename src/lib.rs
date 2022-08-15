@@ -15,16 +15,15 @@ pub enum IsotestContext {
 
 /// Trait that declares the relationship between a "test" and "real struct",
 /// namely how to go back and forth between the two.
-pub trait Iso<Test, Real>: 'static
+pub trait Iso<Real>: 'static
 where
-    Test: Clone + Iso<Test, Real>,
-    Real: Clone + Iso<Test, Real>,
+    Real: Clone,
 {
     /// Return the test version of this data, mapping if necessary.
     ///
     /// The test data must be a subset of the real data, so that this
     /// transformation is never lossy.
-    fn test(&self) -> Test;
+    fn test(x: &Real) -> Self;
 
     /// Return the real version of this data, mapping if necessary.
     ///
@@ -56,33 +55,21 @@ where
 ///     B => |b| A(b.0),
 /// }
 ///
-/// assert_eq!(A(1).test(), A(1));
 /// assert_eq!(A(1).real(), B(1, 42));
-/// assert_eq!(B(1, 2).test(), A(1));
-/// assert_eq!(B(1, 2).real(), B(1, 2));
+/// assert_eq!(A::test(&B(1, 2)), A(1));
 /// ```
 #[macro_export]
 macro_rules! iso {
     ($a:ty => $forward:expr, $b:ty => $backward:expr $(,)?) => {
-        impl $crate::Iso<$a, $b> for $a {
-            fn test(&self) -> $a {
-                self.clone()
+        impl $crate::Iso<$b> for $a {
+            fn test(x: &$b) -> $a {
+                let f: Box<dyn Fn($b) -> $a> = Box::new($backward);
+                f(x.clone())
             }
 
             fn real(&self) -> $b {
                 let f: Box<dyn Fn($a) -> $b> = Box::new($forward);
                 f(self.clone())
-            }
-        }
-
-        impl $crate::Iso<$a, $b> for $b {
-            fn test(&self) -> $a {
-                let f: Box<dyn Fn($b) -> $a> = Box::new($backward);
-                f(self.clone())
-            }
-
-            fn real(&self) -> $b {
-                self.clone()
             }
         }
     };
@@ -171,19 +158,19 @@ pub struct IsoRealApi<A, B>(pub PhantomData<(A, B)>);
 
 impl<A, B> IsoRealApi<A, B>
 where
-    A: Clone + Iso<A, B>,
-    B: Clone + Iso<A, B>,
+    A: Iso<B>,
+    B: Clone,
 {
     pub fn create(&self, a: A) -> B {
         a.real()
     }
 
     pub fn update(&self, x: B, f: impl Fn(A) -> A) -> B {
-        f(x.test()).real()
+        f(A::test(&x)).real()
     }
 
     pub fn mutate(&self, x: &mut B, f: impl Fn(&mut A)) {
-        let mut t = x.test();
+        let mut t = A::test(x);
         f(&mut t);
         std::mem::replace(x, t.real());
     }

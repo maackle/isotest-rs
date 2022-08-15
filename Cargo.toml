@@ -5,6 +5,5 @@ edition = "2021"
 
 [dependencies]
 
-
 [dev-dependencies]
 derive_more = "0"
