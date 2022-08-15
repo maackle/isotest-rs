@@ -136,7 +136,6 @@ where
 /// }
 ///
 /// isotest::isotest! {
-///     <A, B>
 ///     |iso| {
 ///         let mut a = iso.create(A(1));
 ///         assert_eq!(a.num(), 1);
