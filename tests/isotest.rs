@@ -80,7 +80,7 @@ fn invariants() {
 
 #[test]
 fn basic() {
-    isotest::isotest!(TestStruct, |iso| {
+    isotest::isotest!(TestStruct => |iso| {
         let x = iso.create(TestStruct(1));
         let y = iso.create(TestStruct(2));
         let mut z = iso.create(TestStruct(3));
@@ -104,7 +104,7 @@ fn basic() {
 /// A real test should not check the context.
 #[test]
 fn big_fails() {
-    isotest::isotest!(BadTestStruct, |iso| {
+    isotest::isotest!(BadTestStruct =>|iso| {
         let x = iso.create(BadTestStruct(1));
         let y = iso.create(BadTestStruct(2));
         let z = iso.create(BadTestStruct(3));
@@ -135,13 +135,27 @@ fn big_fails() {
 }
 
 #[test]
+fn multi_iso() {
+    isotest::isotest!(TestStruct, BadTestStruct => |good, bad| {
+        let mut g = good.create(TestStruct(0));
+        let mut b = bad.create(BadTestStruct(0));
+
+        good.mutate(&mut g, |g| g.0 += 1);
+        bad.mutate(&mut b, |b| b.0 += 1);
+
+        assert_eq!(g.0, 1);
+        assert_eq!(b.0, 1);
+    });
+}
+
+#[test]
 fn async_support() {
     async fn f() -> u8 {
         1
     }
 
     smol::block_on(async {
-        isotest::isotest_async!(TestStruct, |iso| async move {
+        isotest::isotest_async!(TestStruct => |iso| async move {
             let x = iso.create(TestStruct(1));
             assert_eq!(f().await, x.0);
         }

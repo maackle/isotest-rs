@@ -141,7 +141,7 @@ where
 ///     B => |b| A(b.0),
 /// };
 ///
-/// isotest::isotest!(A, |iso| {
+/// isotest::isotest!(A => |iso| {
 ///     let mut a = iso.create(A(1));
 ///     assert_eq!(a.num(), 1);
 ///     iso.mutate(&mut a, |a| {
@@ -153,7 +153,7 @@ where
 ///
 #[macro_export]
 macro_rules! isotest {
-    ( $($iso:ty,)+ $runner:expr) => {
+    ( $($iso:ty),+ => $runner:expr) => {
         use $crate::Iso;
         {
             // This is the test using the "test" struct
@@ -173,7 +173,7 @@ macro_rules! isotest {
 #[cfg(feature = "async")]
 #[macro_export]
 macro_rules! isotest_async {
-    ($($iso:ty,)+ $runner:expr) => {
+    ($($iso:ty),+ => $runner:expr) => {
         use $crate::Iso;
         {
             // This is the test using the "test" struct
