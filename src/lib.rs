@@ -2,6 +2,8 @@
 
 #![warn(missing_docs)]
 
+use std::marker::PhantomData;
+
 /// Which of the two contexts each isotest body will run under.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IsotestContext {
@@ -107,7 +109,11 @@ where
     }
 }
 
+/// Run the same closure for both the Test and Real versions of some data.
 ///
+/// The macro takes a list of [`Iso`] implementors, followed by closure which
+/// receives a small API which can handle each `Iso` type. See
+/// [`IsoTestApi`] and [`IsoRealApi`] for descriptions of the methods.
 /// ```rust
 /// #[derive(Clone, Debug, PartialEq)]
 /// struct A(u8);
@@ -133,35 +139,31 @@ where
 /// isotest::iso! {
 ///     A => |a| B(a.0, 42),
 ///     B => |b| A(b.0),
-/// }
+/// };
 ///
-/// isotest::isotest! {
-///     |iso| {
-///         let mut a = iso.create(A(1));
-///         assert_eq!(a.num(), 1);
-///         iso.mutate::<A, _>(&mut a, |a| {
-///             a.0 = 2;
-///         });
-///         assert_eq!(a.num(), 2);
-///     }
-/// }
+/// isotest::isotest!(A, |iso| {
+///     let mut a = iso.create(A(1));
+///     assert_eq!(a.num(), 1);
+///     iso.mutate(&mut a, |a| {
+///         a.0 = 2;
+///     });
+///     assert_eq!(a.num(), 2);
+/// });
 /// ```
 ///
 #[macro_export]
 macro_rules! isotest {
-    ($runner:expr) => {
+    ( $($iso:ty,)+ $runner:expr) => {
         use $crate::Iso;
         {
             // This is the test using the "test" struct
-            let api = $crate::IsoTestApi;
-            let run: Box<dyn Fn($crate::IsoTestApi)> = Box::new($runner);
-            run(api);
+            let run: Box<dyn Fn($( $crate::IsoTestApi<$iso>, )+ )> = Box::new($runner);
+            run($( $crate::IsoTestApi::<$iso>::new(), )+);
         }
         {
             // This is the test using the "real" struct
-            let api = $crate::IsoRealApi;
-            let run: Box<dyn Fn($crate::IsoRealApi)> = Box::new($runner);
-            run(api);
+            let run: Box<dyn Fn($( $crate::IsoRealApi<$iso>, )+ )> = Box::new($runner);
+            run($( $crate::IsoRealApi::<$iso>::new(), )+);
         }
     };
 }
@@ -171,23 +173,21 @@ macro_rules! isotest {
 #[cfg(feature = "async")]
 #[macro_export]
 macro_rules! isotest_async {
-    ($runner:expr) => {
+    ($($iso:ty,)+ $runner:expr) => {
         use $crate::Iso;
         {
             // This is the test using the "test" struct
-            let api = $crate::IsoTestApi;
-            let run: Box<
-                dyn Fn($crate::IsoTestApi) -> std::pin::Pin<Box<dyn futures::Future<Output = ()>>>,
+            let run: Box<dyn Fn($( $crate::IsoTestApi<$iso>, )+ )
+                -> std::pin::Pin<Box<dyn futures::Future<Output = ()>>>,
             > = Box::new($runner);
-            run(api).await;
+            run($( $crate::IsoTestApi::<$iso>::new(), )+).await;
         }
         {
             // This is the test using the "real" struct
-            let api = $crate::IsoRealApi;
-            let run: Box<
-                dyn Fn($crate::IsoRealApi) -> std::pin::Pin<Box<dyn futures::Future<Output = ()>>>,
+            let run: Box<dyn Fn($( $crate::IsoRealApi<$iso>, )+ )
+                -> std::pin::Pin<Box<dyn futures::Future<Output = ()>>>,
             > = Box::new($runner);
-            run(api).await;
+            run($( $crate::IsoRealApi::<$iso>::new(), )+).await;
         }
     };
 }
@@ -198,7 +198,7 @@ macro_rules! isotest_async {
 /// function signatures for each context, so that the test can be written
 /// the same lexically, but actually expand to two different tests
 /// working with two different types.
-pub struct IsoTestApi;
+pub struct IsoTestApi<A: Iso>(PhantomData<A>);
 
 /// The API passed into an isotest in the Real context.
 ///
@@ -206,24 +206,26 @@ pub struct IsoTestApi;
 /// function signatures for each context, so that the test can be written
 /// the same lexically, but actually expand to two different tests
 /// working with two different types.
-pub struct IsoRealApi;
+pub struct IsoRealApi<A: Iso>(PhantomData<A>);
 
-impl IsoTestApi {
+impl<A: Iso> IsoTestApi<A> {
+    /// Constructor
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+
     /// Create test data from test data (identity function)
-    pub fn create<A>(&self, a: A) -> A {
+    pub fn create(&self, a: A) -> A {
         a
     }
 
     /// Update test data with a function over test data (simple map)
-    pub fn update<A: Iso, F: Fn(A) -> A>(&self, a: A, f: F) -> A {
+    pub fn update(&self, a: A, f: impl Fn(A) -> A) -> A {
         f(a)
     }
 
     /// Mutate test data with a function over test data (simple mutable map)
-    pub fn mutate<A, F>(&self, a: &mut A, f: F)
-    where
-        F: Fn(&mut A),
-    {
+    pub fn mutate(&self, a: &mut A, f: impl Fn(&mut A)) {
         f(a)
     }
 
@@ -233,30 +235,24 @@ impl IsoTestApi {
     }
 }
 
-impl IsoRealApi {
+impl<A: Iso> IsoRealApi<A> {
+    /// Constructor
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+
     /// Create real data from test data
-    pub fn create<A, B>(&self, a: A) -> B
-    where
-        A: Iso<Real = B>,
-        B: Clone,
-    {
+    pub fn create(&self, a: A) -> A::Real {
         a.real()
     }
 
     /// Update real data with a function over test data
-    pub fn update<A, F: Fn(A) -> A>(&self, x: A::Real, f: F) -> A::Real
-    where
-        A: Iso,
-    {
+    pub fn update(&self, x: A::Real, f: impl Fn(A) -> A) -> A::Real {
         f(A::test(&x)).real()
     }
 
     /// Mutate real data with a function over test data (simple mutable map)
-    pub fn mutate<A, F>(&self, x: &mut A::Real, f: F)
-    where
-        A: Iso,
-        F: Fn(&mut A),
-    {
+    pub fn mutate(&self, x: &mut A::Real, f: impl Fn(&mut A)) {
         let mut t = A::test(x);
         f(&mut t);
         let _ = std::mem::replace(x, t.real());

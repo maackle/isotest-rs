@@ -80,19 +80,19 @@ fn invariants() {
 
 #[test]
 fn basic() {
-    isotest::isotest!(|iso| {
+    isotest::isotest!(TestStruct, |iso| {
         let x = iso.create(TestStruct(1));
         let y = iso.create(TestStruct(2));
         let mut z = iso.create(TestStruct(3));
         assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 6);
 
-        let y = iso.update::<TestStruct, _>(y, |mut y| {
+        let y = iso.update(y, |mut y| {
             y.0 = 4;
             y
         });
         assert_eq!(process([x, y, z].into_iter()), 8);
 
-        iso.mutate::<TestStruct, _>(&mut z, |z| {
+        iso.mutate(&mut z, |z| {
             z.0 = 10;
         });
         assert_eq!(process([x, y, z].into_iter()), 15);
@@ -104,7 +104,7 @@ fn basic() {
 /// A real test should not check the context.
 #[test]
 fn big_fails() {
-    isotest::isotest!(|iso| {
+    isotest::isotest!(BadTestStruct, |iso| {
         let x = iso.create(BadTestStruct(1));
         let y = iso.create(BadTestStruct(2));
         let z = iso.create(BadTestStruct(3));
@@ -118,7 +118,7 @@ fn big_fails() {
             }
         }
 
-        let y = iso.update::<BadTestStruct, _>(y, |mut y| {
+        let y = iso.update(y, |mut y| {
             y.0 = 4;
             y
         });
@@ -141,7 +141,7 @@ fn async_support() {
     }
 
     smol::block_on(async {
-        isotest::isotest_async!(|iso| async move {
+        isotest::isotest_async!(TestStruct, |iso| async move {
             let x = iso.create(TestStruct(1));
             assert_eq!(f().await, x.0);
         }
