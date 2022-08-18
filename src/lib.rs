@@ -4,6 +4,8 @@
 
 use std::marker::PhantomData;
 
+pub use paste;
+
 /// Which of the two contexts each isotest body will run under.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IsotestContext {
@@ -88,7 +90,7 @@ macro_rules! iso {
             }
         }
 
-        $( paste::paste! {
+        $($crate::paste::paste! {
             #[test]
             fn [< iso_impl_invariants_test__ $a:snake:lower __ $b:snake:lower >]() {
                 $(
@@ -99,7 +101,7 @@ macro_rules! iso {
             }
         })?
 
-        $(paste::paste! {
+        $($crate::paste::paste! {
             #[test]
             fn [< iso_impl_invariants_real__ $a:snake:lower __ $b:snake:lower >]() {
                 $(
