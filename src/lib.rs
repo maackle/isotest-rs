@@ -60,7 +60,13 @@ pub trait Iso: Sized {
 /// ```
 #[macro_export]
 macro_rules! iso {
-    ($a:ty => $forward:expr, $b:ty => $backward:expr $(,)?) => {
+    (
+        $a:ty => $forward:expr,
+        $b:ty => $backward:expr
+        $(, test_cases: [$($tc:expr),* $(,)?])?
+        $(, real_cases: [$($rc:expr),* $(,)?])?
+        $(,)?
+    ) => {
         impl $crate::Iso for $a {
             type Real = $b;
 
@@ -81,7 +87,48 @@ macro_rules! iso {
                 a.real()
             }
         }
+
+        $( paste::paste! {
+            #[test]
+            fn [< iso_impl_invariants_test__ $a:snake:lower __ $b:snake:lower >]() {
+                $(
+                    let test1: $a = $tc;
+                    let test2 = $crate::roundtrip_test(test1);
+                    assert_eq!(test1, test2, "Iso test_case invariant test failed: {:?} != {:?}", test1, test2);
+                )*
+            }
+        })?
+
+        $(paste::paste! {
+            #[test]
+            fn [< iso_impl_invariants_real__ $a:snake:lower __ $b:snake:lower >]() {
+                $(
+                    let real: $b = $rc;
+                    let (test1, test2) = $crate::roundtrip_real::<$a, $b>(real);
+                    assert_eq!(test1, test2, "Iso real_case invariant test failed: {:?} != {:?}, real data = {:?}", test1, test2, real);
+                )*
+            }
+        })?
     };
+}
+
+/// Roundtrip from test -> real -> test
+pub fn roundtrip_test<A>(test: A) -> A
+where
+    A: Iso + PartialEq + std::fmt::Debug,
+{
+    A::test(&test.real())
+}
+
+/// Roundtrip from real -> test -> real -> test, returning the two test items
+pub fn roundtrip_real<A, B>(real: B) -> (A, A)
+where
+    A: Iso<Real = B> + PartialEq + std::fmt::Debug,
+    B: Clone + PartialEq + std::fmt::Debug,
+{
+    let test = A::test(&real);
+    let test2 = A::test(&test.real());
+    (test, test2)
 }
 
 /// Test the invariants of your Iso implementation.

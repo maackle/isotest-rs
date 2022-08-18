@@ -8,6 +8,7 @@ repository = "https://github.com/maackle/isotest-rust"
 
 [dependencies]
 futures = { version = "0.3", optional = true }
+paste = "1"
 
 [dev-dependencies]
 assert-panic = "1"

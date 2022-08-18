@@ -16,6 +16,15 @@ struct TestStruct(u8);
 isotest::iso! {
     TestStruct => |a| { RealStruct(a.0, 0) },
     RealStruct => |b| { TestStruct(b.0) },
+
+    test_cases: [
+        TestStruct(0),
+        TestStruct(42),
+    ],
+    real_cases: [
+        RealStruct(0, 42),
+        RealStruct(42, 0),
+    ],
 }
 
 /// Another subset representation of production data, but with a bad Common trait implementation
@@ -25,15 +34,27 @@ struct BadTestStruct(u8);
 isotest::iso! {
     BadTestStruct => |a| { RealStruct(a.0, 0) },
     RealStruct => |b| { BadTestStruct(b.0) },
+
+    test_cases: [
+        BadTestStruct(0),
+        BadTestStruct(42),
+    ],
+    real_cases: [
+        RealStruct(0, 0),
+        RealStruct(42, 0),
+    ],
 }
 
 /// Another subset representation of production data, but with a bad Iso trait implementation
 #[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
 struct BadderTestStruct(u8);
 
+// This is an intentionally faulty implementation!
 isotest::iso! {
     BadderTestStruct => |a| { RealStruct(a.0, 0) },
     RealStruct => |b| { BadderTestStruct(b.0 + 1) },
+
+    // Note: no test cases will pass for this implementation.
 }
 
 impl Common for RealStruct {
@@ -48,14 +69,13 @@ impl Common for TestStruct {
     }
 }
 
-// This is a faulty implementation!
+// This is an intentionally faulty implementation!
 impl Common for BadTestStruct {
     fn num(&self) -> u8 {
         self.0 + 1
     }
 }
 
-// This is a faulty implementation!
 impl Common for BadderTestStruct {
     fn num(&self) -> u8 {
         self.0
