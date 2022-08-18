@@ -84,21 +84,26 @@ macro_rules! iso {
     };
 }
 
-/// Test the invariants of your Iso implementation with an arbitrary Test and Real value.
-///
-/// The Test and Real values do not need to have any relationship to each other.
-pub fn test_iso_invariants<A, B>(test: A, real: B)
+/// Test the invariants of your Iso implementation.
+/// This test must pass for any Test value you use.
+pub fn assert_iso_invariants_test<A>(test: A)
+where
+    A: Iso + PartialEq + std::fmt::Debug,
+{
+    let test2 = A::test(&test.real());
+    assert_eq!(
+        test, test2,
+        "test -> real -> test roundtrip should leave original value unchanged"
+    );
+}
+
+/// Test the invariants of your Iso implementation.
+/// This test must pass for any Real value you use.
+pub fn assert_iso_invariants_real<A, B>(real: B)
 where
     A: Iso<Real = B> + PartialEq + std::fmt::Debug,
     B: Clone + PartialEq + std::fmt::Debug,
 {
-    {
-        let test2 = A::test(&test.real());
-        assert_eq!(
-            test, test2,
-            "test -> real -> test roundtrip should leave original value unchanged"
-        );
-    }
     {
         let test = A::test(&real);
         let test2 = A::test(&test.real());

@@ -1,5 +1,5 @@
 use futures::FutureExt;
-use isotest::{test_iso_invariants, IsotestContext};
+use isotest::IsotestContext;
 
 trait Common {
     fn num(&self) -> u8;
@@ -67,14 +67,21 @@ fn process<T: Common, I: Iterator<Item = T>>(ts: I) -> u8 {
 }
 
 #[test]
-fn invariants() {
-    test_iso_invariants(TestStruct(42), RealStruct(101, 222));
-    test_iso_invariants(BadTestStruct(42), RealStruct(101, 222));
+fn test_invariants() {
+    use isotest::*;
+    assert_iso_invariants_test(TestStruct(42));
+    assert_iso_invariants_test(BadTestStruct(42));
+    assert_iso_invariants_real::<TestStruct, _>(RealStruct(101, 222));
 
     assert_panic::assert_panic! {
-        test_iso_invariants(BadderTestStruct(42), RealStruct(101, 222)),
+        assert_iso_invariants_test(BadderTestStruct(42)),
         String,
         contains "test -> real -> test roundtrip should leave original value unchanged"
+    };
+    assert_panic::assert_panic! {
+        assert_iso_invariants_real::<BadderTestStruct, _>(RealStruct(101, 222)),
+        String,
+        contains "real -> test -> real -> test roundtrip should be idempotent"
     };
 }
 
