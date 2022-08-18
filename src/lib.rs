@@ -95,7 +95,7 @@ macro_rules! iso {
             fn [< iso_impl_invariants_test__ $a:snake:lower __ $b:snake:lower >]() {
                 $(
                     let test1: $a = $tc;
-                    let test2 = $crate::roundtrip_test(test1);
+                    let test2 = $crate::roundtrip_test(&test1);
                     assert_eq!(test1, test2, "Iso test_case invariant test failed: {:?} != {:?}", test1, test2);
                 )*
             }
@@ -106,7 +106,7 @@ macro_rules! iso {
             fn [< iso_impl_invariants_real__ $a:snake:lower __ $b:snake:lower >]() {
                 $(
                     let real: $b = $rc;
-                    let (test1, test2) = $crate::roundtrip_real::<$a, $b>(real);
+                    let (test1, test2) = $crate::roundtrip_real::<$a, $b>(&real);
                     assert_eq!(test1, test2, "Iso real_case invariant test failed: {:?} != {:?}, real data = {:?}", test1, test2, real);
                 )*
             }
@@ -115,7 +115,7 @@ macro_rules! iso {
 }
 
 /// Roundtrip from test -> real -> test
-pub fn roundtrip_test<A>(test: A) -> A
+pub fn roundtrip_test<A>(test: &A) -> A
 where
     A: Iso + PartialEq + std::fmt::Debug,
 {
@@ -123,7 +123,7 @@ where
 }
 
 /// Roundtrip from real -> test -> real -> test, returning the two test items
-pub fn roundtrip_real<A, B>(real: B) -> (A, A)
+pub fn roundtrip_real<A, B>(real: &B) -> (A, A)
 where
     A: Iso<Real = B> + PartialEq + std::fmt::Debug,
     B: Clone + PartialEq + std::fmt::Debug,

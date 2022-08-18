@@ -6,11 +6,11 @@ trait Common {
 }
 
 /// A struct representing real production data
-#[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
+#[derive(Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
 struct RealStruct(u8, u8);
 
 /// A struct representing a subset of the production data
-#[derive(Copy, Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
+#[derive(Clone, Debug, PartialEq, Eq, derive_more::Add, derive_more::Sum)]
 struct TestStruct(u8);
 
 isotest::iso! {
@@ -117,7 +117,7 @@ fn basic() {
             y.0 = 4;
             y
         });
-        assert_eq!(process([x, y, z].into_iter()), 8);
+        assert_eq!(process([x.clone(), y.clone(), z.clone()].into_iter()), 8);
 
         iso.mutate(&mut z, |z| {
             z.0 = 10;
