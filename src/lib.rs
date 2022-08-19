@@ -40,6 +40,13 @@ pub trait Iso: Sized {
 /// Helper to define a two-way [`Iso`] relationship between test data
 /// and real data.
 ///
+/// The macro mainly just helps you implement the trait succinctly,
+/// but also throws in a free From<Real> for Test impl for you.
+///
+/// It is important that the Iso implementation satisfies two laws:
+/// 1. for any Test data `t`, `t == Iso::test(Iso::real(t))`
+/// 1. for any Real data `r`, `Iso::test(r) == Iso::test(Iso::real(Iso::test(r)))`
+///
 /// You typically do not need to work with this trait directly. However,
 /// It must be implemented for the two types that you use in
 /// an [`isotest!`] invocation.
