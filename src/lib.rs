@@ -1,4 +1,39 @@
 //! Isotest enables a very specific Rust unit testing pattern.
+//!
+//! Say you have some complex data type which is used in a lot of places.
+//! You'd like to write functions that operate on that complex data, but these
+//! functions only need to know about some small subset of that data type.
+//! It could be convenient to write those functions generically over a trait which
+//! contains methods that work with that subset of data, rather than taking the
+//! full data type.
+//!
+//! There a few key benefits to doing this. Using a trait hides irrelevant details,
+//! keeping the concern of the function limited to only what it needs to know.
+//! This is a good application of the
+//! [principle of least privilege](https://en.wikipedia.org/wiki/Principle_of_least_privilege).
+//!
+//! Using a trait also makes writing tests easier. If we used the full data type,
+//! we would need to create test fixtures with a lot of extraneous arbitrary data which
+//! won't even affect the function under test. By using a trait, we can write a much
+//! simpler test-only data structure which implements the same trait, and use that instead
+//! of the complex "real" data type in our tests. This keeps tests simpler and avoids the
+//! need to generate lots of arbitrary throw-away data.
+//!
+//! Additionally, when debugging a failing test, it's a lot easier to get debug output on
+//! just the data we care about, and not have all of the noise of the real data structure
+//! included in the debug output.
+//!
+//! The only concern with this approach is that we're not testing the "real" data, and if there
+//! is any problem with our test data type or its implementation of the common trait, then
+//! we may not be testing what we think we are testing. This is where `isotest` comes in.
+//!
+//! `isotest` helps ensure that our implementation of the common trait is correct by
+//! letting the user define functions to convert to and from the test data type, and
+//! then providing a macro with a simple API to run tests for both types.
+//! The user can write tests in terms of the simpler test data, but then that test gets run
+//! for both test and real data, to ensure that assumptions implicit in the trait implementation
+//! are not faulty. Thus, you get the benefit of simplifying your test writing while
+//! still testing your logic with real data.
 
 #![warn(missing_docs)]
 
@@ -41,11 +76,17 @@ pub trait Iso: Sized {
 /// and real data.
 ///
 /// The macro mainly just helps you implement the trait succinctly,
-/// but also throws in a free From<Real> for Test impl for you.
+/// but also throws in a free `From<Real> for Test` impl for you.
+/// It also allows you to specify example cases on both the Test and
+/// Real sides for which invariant tests will be generated.
 ///
-/// It is important that the Iso implementation satisfies two laws:
+/// It is important that the Iso implementation satisfies two invariants:
 /// 1. for any Test data `t`, `t == Iso::test(Iso::real(t))`
-/// 1. for any Real data `r`, `Iso::test(r) == Iso::test(Iso::real(Iso::test(r)))`
+/// 2. for any Real data `r`, `Iso::test(r) == Iso::test(Iso::real(Iso::test(r)))`
+///
+/// The `test_cases` and `real_cases` can be used to automatically generate tests
+/// which check that these invariants are upheld for whatever cases are specified.
+/// The tests are generated with the prefix `iso_impl_invariants_test__`.
 ///
 /// You typically do not need to work with this trait directly. However,
 /// It must be implemented for the two types that you use in
@@ -62,6 +103,8 @@ pub trait Iso: Sized {
 /// isotest::iso! {
 ///     A => |a| B(a.0, 42),
 ///     B => |b| A(b.0),
+///     test_cases: [A(0), A(42)],
+///     real_cases: [B(0, 0), B(42, 42)],
 /// }
 ///
 /// assert_eq!(A(1).real(), B(1, 42));
